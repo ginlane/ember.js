@@ -1,0 +1,62 @@
+define("ember-views/tests/mixins/view_target_action_support_test",
+  ["ember-metal/core","ember-runtime/system/object","ember-views/views/view","ember-views/mixins/view_target_action_support"],
+  function(__dependency1__, __dependency2__, __dependency3__, __dependency4__) {
+    "use strict";
+    var Ember = __dependency1__["default"];
+    var EmberObject = __dependency2__["default"];
+    var View = __dependency3__.View;
+    var ViewTargetActionSupport = __dependency4__["default"];
+
+    var originalLookup;
+
+    module("ViewTargetActionSupport", {
+      setup: function() {
+        originalLookup = Ember.lookup;
+      },
+      teardown: function() {
+        Ember.lookup = originalLookup;
+      }
+    });
+
+    test("it should return false if no action is specified", function() {
+      expect(1);
+
+      var view = View.createWithMixins(ViewTargetActionSupport, {
+        controller: EmberObject.create()
+      });
+
+      ok(false === view.triggerAction(), "a valid target and action were specified");
+    });
+
+    test("it should support actions specified as strings", function() {
+      expect(2);
+
+      var view = View.createWithMixins(ViewTargetActionSupport, {
+        controller: EmberObject.create({
+          anEvent: function() {
+            ok(true, "anEvent method was called");
+          }
+        }),
+        action: 'anEvent'
+      });
+
+      ok(true === view.triggerAction(), "a valid target and action were specified");
+    });
+
+    test("it should invoke the send() method on the controller with the view's context", function() {
+      expect(3);
+
+      var view = View.createWithMixins(ViewTargetActionSupport, {
+        context: {},
+        controller: EmberObject.create({
+          send: function(evt, context) {
+            equal(evt, 'anEvent', "send() method was invoked with correct event name");
+            equal(context, view.context, "send() method was invoked with correct context");
+          }
+        }),
+        action: 'anEvent'
+      });
+
+      ok(true === view.triggerAction(), "a valid target and action were specified");
+    });
+  });

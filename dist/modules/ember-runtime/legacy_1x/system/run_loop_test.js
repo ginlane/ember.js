@@ -1,0 +1,115 @@
+define("ember-runtime/tests/legacy_1x/system/run_loop_test",
+  ["ember-metal/core","ember-metal/property_get","ember-metal/property_set","ember-metal/mixin","ember-metal/run_loop","ember-metal/binding","ember-runtime/mixins/observable","ember-runtime/system/object"],
+  function(__dependency1__, __dependency2__, __dependency3__, __dependency4__, __dependency5__, __dependency6__, __dependency7__, __dependency8__) {
+    "use strict";
+    var Ember = __dependency1__["default"];
+    var get = __dependency2__.get;
+    var set = __dependency3__.set;
+    var emberObserver = __dependency4__.observer;
+    var run = __dependency5__["default"];
+    var Binding = __dependency6__.Binding;
+    var Observable = __dependency7__["default"];
+    var EmberObject = __dependency8__["default"];
+
+    /*
+      NOTE: This test is adapted from the 1.x series of unit tests.  The tests
+      are the same except for places where we intend to break the API we instead
+      validate that we warn the developer appropriately.
+
+      CHANGES FROM 1.6:
+
+      * Updated the API usage for setting up and syncing Binding since these
+        are not the APIs this file is testing.
+
+      * Disabled a call to invokeOnce() around line 127 because it appeared to be
+        broken anyway.  I don't think it ever even worked.
+    */
+
+    var MyApp, binding1, binding2, previousPreventRunloop;
+
+    module("System:run_loop() - chained binding", {
+      setup: function() {
+        MyApp = {};
+        MyApp.first = EmberObject.createWithMixins(Observable, {
+          output: 'MyApp.first'
+        }) ;
+
+        MyApp.second = EmberObject.createWithMixins(Observable, {
+          input: 'MyApp.second',
+          output: 'MyApp.second',
+
+          inputDidChange: emberObserver("input", function() {
+            this.set("output", this.get("input")) ;
+          })
+
+        }) ;
+
+        MyApp.third = EmberObject.createWithMixins(Observable, {
+          input: "MyApp.third"
+        }) ;
+      }
+    });
+
+    test("Should propagate bindings after the RunLoop completes (using Ember.RunLoop)", function() {
+      run(function () {
+
+        //Binding of output of MyApp.first object to input of MyApp.second object
+          binding1 = Binding.from("first.output")
+            .to("second.input").connect(MyApp) ;
+
+        //Binding of output of MyApp.second object to input of MyApp.third object
+        binding2 = Binding.from("second.output")
+          .to("third.input").connect(MyApp) ;
+
+      });
+      run(function () {
+        // Based on the above binding if you change the output of MyApp.first
+        // object it should change the all the variable of
+        //  MyApp.first,MyApp.second and MyApp.third object
+        MyApp.first.set("output", "change") ;
+
+        //Changes the output of the MyApp.first object
+        equal(MyApp.first.get("output"), "change") ;
+
+        //since binding has not taken into effect the value still remains as change.
+        equal(MyApp.second.get("output"), "MyApp.first") ;
+
+      }); // allows bindings to trigger...
+
+      //Value of the output variable changed to 'change'
+      equal(MyApp.first.get("output"), "change") ;
+
+      //Since binding triggered after the end loop the value changed to 'change'.
+      equal(MyApp.second.get("output"), "change") ;
+    });
+
+    test("Should propagate bindings after the RunLoop completes", function() {
+      run(function () {
+        //Binding of output of MyApp.first object to input of MyApp.second object
+        binding1 = Binding.from("first.output")
+          .to("second.input").connect(MyApp) ;
+
+        //Binding of output of MyApp.second object to input of MyApp.third object
+        binding2 = Binding.from("second.output")
+            .to("third.input").connect(MyApp) ;
+      });
+
+      run(function () {
+        //Based on the above binding if you change the output of MyApp.first object it should
+        //change the all the variable of MyApp.first,MyApp.second and MyApp.third object
+        MyApp.first.set("output", "change") ;
+
+        //Changes the output of the MyApp.first object
+        equal(MyApp.first.get("output"), "change") ;
+
+        //since binding has not taken into effect the value still remains as change.
+        equal(MyApp.second.get("output"), "MyApp.first") ;
+      });
+
+      //Value of the output variable changed to 'change'
+      equal(MyApp.first.get("output"), "change") ;
+
+      //Since binding triggered after the end loop the value changed to 'change'.
+      equal(MyApp.second.get("output"), "change") ;
+    });
+  });
